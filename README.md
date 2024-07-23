@@ -103,8 +103,8 @@ group-participants.update<br>
 <h2 tabindex="-1" dir="auto" data-react-autofocus="true"><a id="user-content-whatsapp-api-nodejs" class="anchor" aria-hidden="true" tabindex="-1" href="#whatsapp-api-nodejs"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a>Documentação:</h2>
 
 <ul dir="auto">
-<li><a target="_blank" href="https://app.getpostman.com/run-collection/26659340-c4bcdbc8-d77c-4b2a-b35a-9013cff8dce6?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D26659340-c4bcdbc8-d77c-4b2a-b35a-9013cff8dce6%26entityType%3Dcollection%26workspaceId%3D3073d90e-cfad-4f45-9c7f-cbb76f21199d">Fork Postman</a></li>
-<li><a target="_blank" href="https://www.postman.com/bold-spaceship-404300/workspace/whatsapp-hard-api-nodejs/collection/26659340-3267c07d-49b4-432b-96d9-8a4cc94b3848?action=share&creator=26659340">Postman Online</a></li>
+
+<li><a target="_blank" href="https://www.postman.com/bold-spaceship-404300/workspace/hard-api/collection/26659340-899ee985-66f7-44a9-8202-3c80edcc9954?action=share&creator=26659340">Postman Online</a></li>
 </ul>
 
 <br>
