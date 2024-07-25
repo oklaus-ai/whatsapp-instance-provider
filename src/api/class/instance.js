@@ -57,7 +57,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function clear() {
 const mainDirectoryPath = 'db/';
 const filesToExclude = ['creds.json', 'contacts.json', 'groups.json'];
-console.log('Evento iniciado as 14:00')
+//console.log('Evento iniciado as 14:00')
   try {
     const folders = await fs.readdir(mainDirectoryPath);
     if (folders.length === 0) {
@@ -121,7 +121,7 @@ socketConfig = {
 
     // markOnlineOnConnect: false
     msgRetryCounterCache: cache,
-	forceGroupsPrekeys : true,
+	forceGroupsPrekeys : false,
     getMessage: (key) => {
         return (dados.loadMessage(key.remoteJid, key.id))?.message || undefined;
     },
@@ -1078,7 +1078,7 @@ async sendTextMessage(data) {
 
     if (data.typeId === 'group' && data.groupOptions && data.groupOptions.markUser) {
         if (data.groupOptions.markUser === 'ghostMention') {
-            const metadata = await this.instance.sock?.groupMetadata(this.getGroupId(to));
+            const metadata = await this.groupidinfo(to);
             mentions = metadata.participants.map((participant) => participant.id);
         } else {
             mentions = this.parseParticipants(groupOptions.markUser);
@@ -1086,6 +1086,13 @@ async sendTextMessage(data) {
     }
 
     let quoted = { quoted: null };
+	let cache = {useCachedGroupMetadata:false};
+	if (data.typeId === 'group')
+		{
+		const metadados = await this.groupidinfo(to);
+        const meta = metadados.participants.map((participant) => participant.id);
+		cache = {useCachedGroupMetadata:meta};
+		}
 
     if (data.options && data.options.replyFrom) {
         const msg = await this.getMessage(data.options.replyFrom, to);
@@ -1100,7 +1107,8 @@ async sendTextMessage(data) {
             text: data.message,
             mentions
         },
-        quoted
+        quoted,
+		cache	
     );
     return send;
 }
@@ -1136,7 +1144,7 @@ async sendMediaFile(data, origem) {
 
     if (data.typeId === 'group' && data.groupOptions && data.groupOptions.markUser) {
         if (data.groupOptions.markUser === 'ghostMention') {
-            const metadata = await this.instance.sock?.groupMetadata(this.getGroupId(to));
+            const metadata = await this.groupidinfo(to);
             mentions = metadata.participants.map((participant) => participant.id);
         } else {
             mentions = this.parseParticipants(groupOptions.markUser);
@@ -1144,6 +1152,13 @@ async sendMediaFile(data, origem) {
     }
 
     let quoted = { quoted: null };
+		let cache = {useCachedGroupMetadata:false};
+	if (data.typeId === 'group')
+		{
+		const metadados = await this.groupidinfo(to);
+        const meta = metadados.participants.map((participant) => participant.id);
+		cache = {useCachedGroupMetadata:meta};
+		}
 
     if (data.options && data.options.replyFrom) {
         const msg = await this.getMessage(data.options.replyFrom, to);
@@ -1281,7 +1296,7 @@ async sendMediaFile(data, origem) {
             ptt: data.type === 'audio' ? true : false,
             fileName: filename ? filename : file.originalname,
             mentions
-        }, quoted
+        }, quoted, cache 
     );
 
     if (data.type === 'audio' || data.type === 'video' || data.type=='document') {
@@ -1402,6 +1417,14 @@ async sendMedia(to, userType, file, type, caption = '', replyFrom = false, d = f
             quoted = { quoted: msg };
         }
     }
+		let cache = {useCachedGroupMetadata:false};
+	if (userType === 'group')
+		{
+		const metadados = await this.groupidinfo(to);
+        const meta = metadados.participants.map((participant) => participant.id);
+		cache = {useCachedGroupMetadata:meta};
+		}
+
 
     const data = await this.instance.sock?.sendMessage(
         to, {
@@ -1410,7 +1433,7 @@ async sendMedia(to, userType, file, type, caption = '', replyFrom = false, d = f
             mimetype: mimetype,
             ptt: type === 'audio' ? true : false,
             fileName: filename
-        }, quoted
+        }, quoted, cache
     );
 
     if (type === 'audio' || type === 'video') {
