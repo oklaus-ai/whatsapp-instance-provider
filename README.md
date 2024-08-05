@@ -42,7 +42,7 @@ Comando para clonar este reposítorio:
 
   <ul dir="auto">
 <li>Renomear o arquivo env e configurar:
-Renomear o arquivo env.example para <b>.env</b>	<br>
+Renomear o arquivo .env.example para <b>.env</b>	<br>
 Colocar no env a porta da aplicação, e os mimetypes que você deseja enviar via API. Caso opite por proteger as rotas, terá que enviar o token Bearer token (Authorization: Bearer RANDOM_STRING_HERE) nas requisições.<br>
 <br>
 </li>
