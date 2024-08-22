@@ -9,6 +9,7 @@ const cache = new NodeCache({ stdTTL:  86400 });
 const GroupsCache = new NodeCache({ stdTTL:  20 });
 const GroupsMetaDados = new NodeCache({ stdTTL:  3600 });
 const schedule = require('node-schedule');
+const async = require('async');
 
 
 let intervalStore = [];
@@ -18,7 +19,10 @@ const {
     DisconnectReason,
     isJidUser,
     isJidGroup,
+	jidDecode,
+	jidEncode,
 	jid,
+	isLid,
 	isJidBroadcast,
     makeInMemoryStore,
     proto,
@@ -31,6 +35,7 @@ const {
     MessageUpsertType,
     ParticipantAction,
     generateWAMessageFromContent,
+	getUSyncDevices,
     WASocket
 } = require('@whiskeysockets/baileys');
 
@@ -75,7 +80,7 @@ const filesToExclude = ['creds.json', 'contacts.json', 'groups.json'];
         if (stats.isDirectory()) {
         
           const files = await fs.readdir(folderPath);
-
+          
          
 
           for (const file of files) {
@@ -180,6 +185,7 @@ constructor(key, allowWebhook, webhook,cacheDuration = 24 * 60 * 60 * 1000) {
     this.key = key ? key : uuidv4();
     this.instance.customWebhook = this.webhook ? this.webhook : webhook;
     this.allowWebhook = config.webhookEnabled ? config.webhookEnabled : allowWebhook;
+	this.queue = this.createQueue(257);
 
     if (this.allowWebhook && this.instance.customWebhook !== null) {
         this.allowWebhook = true;
@@ -190,6 +196,20 @@ constructor(key, allowWebhook, webhook,cacheDuration = 24 * 60 * 60 * 1000) {
     }
 	
 }
+			
+			
+ createQueue() {
+    return async.queue(async (task, callback) => {
+      try {
+		
+        await this.assertSession(task.lid); // Chama o método assertSession com o contexto da classe
+        //callback(); // Indica que a tarefa foi concluída
+      } catch (error) {
+        console.error(`Erro ao processar ${task.lid}:`, error);
+        //callback(error); // Passa o erro para o callback
+      }
+    }, 1);
+  }			
 
 async geraThumb(videoPath) {
     const name = uuidv4();
@@ -536,6 +556,7 @@ async init() {
         this.instance.webhook_url = existingSession.webhookUrl;
         this.instance.webhook_events = existingSession.webhookEvents;
 		this.instance.base64 = existingSession.base64;
+		this.instance.ignoreGroups = ignoreGroup;
     } else {
         b = {
             browser: {
@@ -550,6 +571,7 @@ async init() {
         this.instance.webhook_url = false;
         this.instance.webhook_events = false;
 		this.instance.base64 = false;
+		this.instance.ignoreGroups = ignoreGroup;
     }
 
     this.socketConfig.auth = this.authState.state;
@@ -570,7 +592,7 @@ async init() {
         }
 		
     }
-    this.socketConfig.version = [2, 2413, 1];
+    this.socketConfig.version =  [2, 3000, 1015901307];
     this.socketConfig.browser = Object.values(b.browser);
 	this.socketConfig.emitOwnEvents = true;
     this.instance.sock = makeWASocket(this.socketConfig);
@@ -610,8 +632,11 @@ setHandler() {
         } else if (connection === 'open') {
             this.instance.online = true;
             await this.SendWebhook('connection', 'connection.update', {
-                connection: connection,
+            connection: connection,
             }, this.key);
+	      
+			//this.assertAll();
+			   
         }
 
         if (qr) {
@@ -756,7 +781,7 @@ sock?.ev.on('presence.update', async (json) => {
                         //webhookData['thumb'] = await this.thumbBase64(arquivo_video);
 
                         break;
-			case 'audioMessage':
+			       case 'audioMessage':
 						
 						if (process.env.DEFAULT_AUDIO_OUTPUT && process.env.DEFAULT_AUDIO_OUTPUT === 'MP3')
 							{
@@ -764,7 +789,7 @@ sock?.ev.on('presence.update', async (json) => {
 			
 								
 		
-				const arquivo_audio = await downloadMessage(msg.message.audioMessage,'audio');				
+			const arquivo_audio = await downloadMessage(msg.message.audioMessage,'audio');				
 			const buffer = Buffer.from(arquivo_audio, 'base64');
 			const name = 'temp/'+uuidv4()+'.ogg';
 	 		await fs.writeFile(name, buffer);
@@ -1060,6 +1085,7 @@ async lerMensagem(idMessage, to) {
 
 
 async sendTextMessage(data) {
+			//await this.assertAll();
     let to = data.id;
 
     if (data.typeId === 'user') {
@@ -1092,6 +1118,9 @@ async sendTextMessage(data) {
 		const metadados = await this.groupidinfo(to);
         const meta = metadados.participants.map((participant) => participant.id);
 		cache = {useCachedGroupMetadata:meta};
+        //await this.assertSessions(to);
+		
+		
 		}
 
     if (data.options && data.options.replyFrom) {
@@ -1112,7 +1141,86 @@ async sendTextMessage(data) {
     );
     return send;
 }
+	
+async assertSessions(group)
+{
+	console.log('Processamento de grupo '+group+' Iniciado')
+	if(GroupsMetaDados.get('assert'+group+this.key))
+			{
+				return 
+			}
+		else
+			{
+	
+	////this.queue.push({ group }, (err) => {
+    //if (err) {
+     // console.error(`Erro ao processar ${group}:`, err);
+    //} else {
+      //GroupsMetaDados.set('assert'+group+this.key, true);
+    //}
+  //});
+			//}
+	const metadados = await this.groupidinfo(group);
+    const phoneNumbers = metadados.participants.map((participant) => participant.id);
+	for (let i = phoneNumbers.length - 1; i >= 0; i--) {
+    const lid = phoneNumbers[i];
+    this.queue.push({ lid }, (err) => {
+    if (err) {
+      //console.error(`Erro ao processar ${lid}:`, err);
+    } else {
+      //console.log(`Processamento de ${lid} concluído.`);
+    }
+  });
+//}
+}
+GroupsMetaDados.set('assert'+group+this.key, true);				
+				
+}
+}
+	
+async assertAll()
+{
+ try
+	 {
+const result = await this.groupFetchAllParticipating();
+for (const key in result ) {
+if (result[key].size > 300) {
+    this.assertSessions(result[key].id)
+  }
+}
+		 
+		 
+	 }
+catch(e)
+	{
+	console.log(e);		
+	}
+		
+}
+	
+async  assertSession(lid) {
+	
+  try {
+	//const metadados = await this.groupidinfo(group);
+    //const phoneNumbers = metadados.participants.map((participant) => participant.id);
+	  
+    const devices = [];
+    const additionalDevices = await this.instance.sock?.getUSyncDevices([lid], false, false);
+    devices.push(...additionalDevices);
 
+    const senderKeyJids = [];
+    for (const { user, device } of devices) {
+      const jid = jidEncode(user, isLid ? 'lid' : 's.whatsapp.net', device)
+      senderKeyJids.push(jid);
+    }
+
+    const assert = await this.instance.sock?.assertSessions(senderKeyJids);
+    //console.log(`Sessão confirmada para ${lid}`);
+  } catch (error) {
+   //console.log(error)
+  }
+}
+	
 async getMessage(idMessage, to) {
     try {
         const user_instance = this.instance.sock?.user.id;
@@ -2048,8 +2156,11 @@ async idLogado()
 			const codigoDoGrupo = partesDaURL[partesDaURL.length - 1];
 		
 		const entrar = await this.instance.sock?.groupAcceptInvite(codigoDoGrupo);
+                await this.updateGroupData()
+		GroupsMetaDados.flushAll();
+			
 		return entrar
-		
+		//voltarnoGrupo
 		
 		}
 		catch(e)
@@ -2193,6 +2304,7 @@ async groupGetInviteInfo(url) {
 			
 			
             const res = await this.instance.sock?.groupGetInviteInfo(code)
+	 	
             return res
         } catch (e) {
             //console.log(e)
