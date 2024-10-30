@@ -104,7 +104,7 @@ group-participants.update<br>
 
 <ul dir="auto">
 
-<li><a target="_blank" href="https://api.postman.com/collections/26659340-899ee985-66f7-44a9-8202-3c80edcc9954?access_key=PMAT-01JBFE5DM7WJXG17G90YQKM8AS">Json postman</a></li>
+<li><a target="_blank" href="https://api.postman.com/collections/26659340-b26b8001-7617-4f56-8f9b-91fa91bda68a?access_key=PMAT-01JBFF3T4CEG3NMK9C376W3PE1">Json postman</a></li>
 </ul>
 
 <br>
