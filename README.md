@@ -104,7 +104,7 @@ group-participants.update<br>
 
 <ul dir="auto">
 
-<li><a target="_blank" href="https://www.postman.com/bold-spaceship-404300/workspace/hard-api/collection/26659340-899ee985-66f7-44a9-8202-3c80edcc9954?action=share&creator=26659340">Json postman</a></li>
+<li><a target="_blank" href="https://api.postman.com/collections/26659340-899ee985-66f7-44a9-8202-3c80edcc9954?access_key=PMAT-01JBFE5DM7WJXG17G90YQKM8AS">Json postman</a></li>
 </ul>
 
 <br>
