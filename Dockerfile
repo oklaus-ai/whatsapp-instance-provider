@@ -1,24 +1,26 @@
 # Use the official Node.js image as the base
 FROM node
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json for better caching
+# Install FFmpeg
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy package.json and package-lock.json
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install Node.js dependencies
 RUN npm install
 
-# Copy the rest of the application code to the container
+# Copy the entire application code
 COPY . .
 
-# Set environment variables
-ENV AUTO_UPDATE=true
+# Expose the application port
 ENV PORT=3333
-
-# Expose the port the app runs on
 EXPOSE $PORT
 
-# Command to run the app, including optional auto-update
-CMD npm start
+# Start the application
+CMD ["npm", "start"]

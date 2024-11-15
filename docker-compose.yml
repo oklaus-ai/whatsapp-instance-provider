@@ -19,19 +19,21 @@ services:
     networks:
       - app-network
 
-  mongo:
-    image: mongo:6.0
-    hostname: mongo
-    container_name: mongo
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - app-network
+  # mongo:
+  #   image: mongo:6.0
+  #   hostname: mongo
+  #   container_name: mongo
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+  #   volumes:
+  #     - mongo-data:/data/db  # Correct volume mapping
+  #   command: ["mongod", "--config", "/etc/mongo/mongod.conf"]  # Use the configuration file
+  #   networks:
+  #     - app-network
+
 
 volumes:
   mongo-data:
