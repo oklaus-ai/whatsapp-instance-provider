@@ -1,4 +1,4 @@
-const { WhatsAppInstance } = require('../class/instance')
+const { WhatsAppInstance } = require('../class/mdb.instance')
 const fs = require('fs').promises
 const path = require('path')
 const config = require('../../config/config')
