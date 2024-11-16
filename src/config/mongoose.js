@@ -1,7 +1,6 @@
 const mongoose = require('mongoose')
 
-const mongoUrl =
-    process.env.MONGODB_URL || 'mongodb://localhost:27017/defaultdb'
+const mongoUrl = process.env.MONGODB_URL
 
 const connectToMongoDB = async () => {
     try {
