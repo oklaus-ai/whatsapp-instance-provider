@@ -1,0 +1,44 @@
+# Build and launch a local version of the whole chat-sales application
+version: "3.8"
+
+services:
+  backend:
+    container_name: wpp-backend
+    build:
+      context: .  # Set to the root directory, assuming Dockerfile is in the root
+      dockerfile: dev.Dockerfile
+      # dockerfile: old.Dockerfile
+    volumes:
+      - ./src:/app/src  # Mount the `src` directory directly into `/app/src` in the container
+      - /app/node_modules  # Prevents overwriting `node_modules` in the container
+    ports:
+      - "3333:3333"  # Match the PORT in your Dockerfile
+    env_file:
+      - ./.env
+    stdin_open: true
+    tty: true
+    networks:
+      - app-network
+
+  # mongo:
+  #   image: mongo:6.0
+  #   hostname: mongo
+  #   container_name: mongo
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: example
+  #   volumes:
+  #     - mongo-data:/data/db  # Correct volume mapping
+  #   command: ["mongod", "--config", "/etc/mongo/mongod.conf"]  # Use the configuration file
+  #   networks:
+  #     - app-network
+
+
+volumes:
+  mongo-data:
+
+networks:
+  app-network:
+    driver: bridge
