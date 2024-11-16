@@ -12,4 +12,5 @@ sessiondata
 .idea
 
 db/*
+db/init_start.txt
 db/sessions.json
