@@ -458,7 +458,7 @@ class WhatsAppInstance {
     }
 
     async SendWebhook(type, hook, body, key) {
-        if (this.instance.webhok === false) {
+        if (this.instance.webhook === false) {
             return
         } else {
             const webhook_url = this.instance.webhook_url
@@ -481,6 +481,7 @@ class WhatsAppInstance {
         }
     }
 
+    // TODO: should be in Mongodb
     async instanceFind(key) {
         const filePath = path.join('db/sessions.json')
 
@@ -518,6 +519,7 @@ class WhatsAppInstance {
         }
     }
 
+    // TODO: should be managed in mongodb
     async init() {
         const ver = await fetchLatestBaileysVersion()
         const filePath = path.join('db/sessions.json')

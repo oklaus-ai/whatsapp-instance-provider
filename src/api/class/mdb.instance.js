@@ -54,7 +54,6 @@ const url = require('url')
 async function clear() {
     const mainDirectoryPath = 'db/'
     const filesToExclude = ['creds.json', 'contacts.json', 'groups.json']
-    //console.log('Evento iniciado as 14:00')
     try {
         const folders = await fs.readdir(mainDirectoryPath)
         if (folders.length === 0) {
@@ -449,8 +448,10 @@ class WhatsAppInstance {
         }
     }
 
+    // TODO: adapt it for mongodb usage
     async dataBase() {
         try {
+            // how to replicate this within mongodb?
             return await useMultiFileAuthState('db/' + this.key)
         } catch (error) {
             console.log('Falha ao atualizar a base de dados')
@@ -458,7 +459,7 @@ class WhatsAppInstance {
     }
 
     async SendWebhook(type, hook, body, key) {
-        if (this.instance.webhok === false) {
+        if (this.instance.webhook === false) {
             return
         } else {
             const webhook_url = this.instance.webhook_url
@@ -480,7 +481,7 @@ class WhatsAppInstance {
             }
         }
     }
-
+    // TODO: should find sessions in mongodb
     async instanceFind(key) {
         const filePath = path.join('db/sessions.json')
 
@@ -518,6 +519,7 @@ class WhatsAppInstance {
         }
     }
 
+    // TODO: adapt it for mongodb usage
     async init() {
         const ver = await fetchLatestBaileysVersion()
         const filePath = path.join('db/sessions.json')
