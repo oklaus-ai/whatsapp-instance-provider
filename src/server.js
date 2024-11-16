@@ -1,32 +1,52 @@
 const dotenv = require('dotenv')
-//const mongoose = require('mongoose')
-const logger = require('pino')()
+const pino = require('pino')
+const logger = pino()
 dotenv.config()
 
 const app = require('./config/express')
 const config = require('./config/config')
-
-const { Session } = require('./api/class/session')
-
+const { connectDB } = require('./mongodb')
+const InstanceManager = require('./api/class/InstanceManager')
 
 let server
 
+    // Connect to MongoDB
+;(async () => {
+    try {
+        await connectDB()
+        logger.info('Connected to MongoDB')
 
-server = app.listen(config.port, async () => {
-    logger.info(`Listening on port ${config.port}`)
-   
-    if (config.restoreSessionsOnStartup) {
-        logger.info(`Restaurando sessions`)
-        const session = new Session()
-        let restoreSessions = await session.restoreSessions()
-        logger.info(`Sessions restauradas`)
+        // Initialize the InstanceManager and restore instances
+        await InstanceManager.init()
+        logger.info('InstanceManager initialized')
+
+        if (config.restoreSessionsOnStartup) {
+            logger.info('Restoring WhatsApp instances...')
+            await InstanceManager.restoreInstances()
+            logger.info('WhatsApp instances restored successfully')
+        }
+
+        // Start the server
+        server = app.listen(config.port, () => {
+            logger.info(`Listening on port ${config.port}`)
+        })
+    } catch (error) {
+        logger.error('Failed to initialize the application:', error)
+        process.exit(1) // Exit if any critical error occurs during startup
     }
-})
+})()
 
+// Gracefully handle application exit
 const exitHandler = () => {
     if (server) {
-        server.close(() => {
+        server.close(async () => {
             logger.info('Server closed')
+            try {
+                await InstanceManager.cleanup() // Cleanup instances gracefully
+                logger.info('Instances cleaned up')
+            } catch (cleanupError) {
+                logger.error('Error during instance cleanup:', cleanupError)
+            }
             process.exit(1)
         })
     } else {
@@ -34,8 +54,9 @@ const exitHandler = () => {
     }
 }
 
+// Error handling for unexpected errors
 const unexpectedErrorHandler = (error) => {
-    logger.error(error)
+    logger.error('Unexpected error:', error)
     exitHandler()
 }
 

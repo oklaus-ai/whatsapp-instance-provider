@@ -1,409 +1,493 @@
-const { WhatsAppInstance } = require('../class/instance');
-const fs = require('fs').promises;
-const path = require('path');
-const config = require('../../config/config');
-const { Session } = require('../class/session');
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// src/controllers/instance.controller.js
+
+const path = require('path')
+const config = require('../../config/config')
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const sessionRepository = require('../../mongodb/repositories/sessionRepository')
+const InstanceManager = require('../class/InstanceManager')
 
 exports.init = async (req, res) => {
-    let webhook = req.body.webhook || false;
-    let webhookUrl = req.body.webhookUrl || false;
-    let browser = req.body.browser || 'Minha Api';
-    let ignoreGroups = req.body.ignoreGroups || false;
-    let webhookEvents = req.body.webhookEvents || [];
-    let messagesRead = req.body.messagesRead || false;
-    let base64 = req.body.base64 || false;
+    let {
+        webhook = false,
+        webhookUrl = false,
+        browser = 'Minha Api',
+        ignoreGroups = false,
+        webhookEvents = [],
+        messagesRead = false,
+        base64 = false,
+        key,
+    } = req.body
 
-    const key = req.body.key;
-    const filePath = path.join('db/sessions.json');
-
-    const data = await fs.readFile(filePath, 'utf-8');
-const sessions = JSON.parse(data);
-const sessionCount = sessions.length;
-
-if (process.env.MAX_INSTANCES) {
-  const maxInstances = parseInt(process.env.MAX_INSTANCES, 10);
-  if (maxInstances <= sessionCount) {
-    return res.json({
-      error: true,
-      message: 'Limite de sessions criadas já foi atingido'
-    });
-  }
-}
-    const valida = sessions.find(session => session.key === key);
-
-    if (valida) {
+    if (!key) {
         return res.json({
             error: true,
-            message: 'Sessão já foi iniciada.'
-        });
-    } else {
-        const appUrl = config.appUrl || req.protocol + '://' + req.headers.host;
-
-        const filePath = path.join('db/sessions.json');
-        const dataSession = await fs.readFile(filePath, 'utf-8');
-        const sessions = JSON.parse(dataSession);
-
-        sessions.push({ key: key, ignoreGroups: ignoreGroups, webhook: webhook, base64: base64, webhookUrl: webhookUrl, browser: browser, webhookEvents: webhookEvents, messagesRead: messagesRead });
-
-        await fs.writeFile(filePath, JSON.stringify(sessions, null, 2), 'utf-8');
-
-        const instance = new WhatsAppInstance(key, webhook, webhookUrl);
-        const data = await instance.init();
-        WhatsAppInstances[data.key] = instance;
-        res.json({
-            error: false,
-            message: 'Instancia iniciada',
-            key: data.key,
-            webhook: {
-                enabled: webhook,
-                webhookUrl: webhookUrl,
-                webhookEvents: webhookEvents
-            },
-            qrcode: {
-                url: appUrl + '/instance/qr?key=' + data.key,
-            },
-            browser: browser,
-            messagesRead: messagesRead,
-            ignoreGroups: ignoreGroups,
-        });
+            message: 'Key is required to initialize an instance.',
+        })
     }
-};
+
+    const existingSession = await sessionRepository.findByKey(key)
+
+    const sessionCount = await sessionRepository.countSessions()
+
+    if (process.env.MAX_INSTANCES) {
+        const maxInstances = parseInt(process.env.MAX_INSTANCES, 10)
+        if (maxInstances <= sessionCount) {
+            return res.json({
+                error: true,
+                message: 'Maximum number of sessions reached.',
+            })
+        }
+    }
+
+    if (existingSession) {
+        return res.json({
+            error: true,
+            message: 'Session already initialized.',
+        })
+    } else {
+        const appUrl = config.appUrl || req.protocol + '://' + req.headers.host
+
+        try {
+            const instance = await InstanceManager.createInstance(key, {
+                webhook,
+                webhookUrl,
+                browser,
+                ignoreGroups,
+                webhookEvents,
+                messagesRead,
+                base64,
+            })
+
+            res.json({
+                error: false,
+                message: 'Instance initialized',
+                key: key,
+                webhook: {
+                    enabled: webhook,
+                    webhookUrl: webhookUrl,
+                    webhookEvents: webhookEvents,
+                },
+                qrcode: {
+                    url: appUrl + '/instance/qr?key=' + key,
+                },
+                browser: browser,
+                messagesRead: messagesRead,
+                ignoreGroups: ignoreGroups,
+            })
+        } catch (error) {
+            res.json({
+                error: true,
+                message: error.message,
+            })
+        }
+    }
+}
 
 exports.editar = async (req, res) => {
-    let webhook = req.body.webhook || false;
-    let webhookUrl = req.body.webhookUrl || false;
-    let browser = req.body.browser || 'Minha Api';
-    let ignoreGroups = req.body.ignoreGroups || false;
-    let webhookEvents = req.body.webhookEvents || [];
-    let messagesRead = req.body.messagesRead || false;
-    let base64 = req.body.base64 || false;
+    let {
+        webhook = false,
+        webhookUrl = false,
+        browser = 'Minha Api',
+        ignoreGroups = false,
+        webhookEvents = [],
+        messagesRead = false,
+        base64 = false,
+        key,
+    } = req.body
 
-    const key = req.body.key;
-    const filePath = path.join('db/sessions.json');
-    const data = await fs.readFile(filePath, 'utf-8');
-    const sessions = JSON.parse(data);
-    const index = sessions.findIndex(session => session.key === key);
+    if (!key) {
+        return res.json({
+            error: true,
+            message: 'Key is required to edit an instance.',
+        })
+    }
 
-    if (index !== -1) {
-        sessions[index] = { key, ignoreGroups, webhook, base64, webhookUrl, browser, webhookEvents, messagesRead, ignoreGroups };
-        await fs.writeFile(filePath, JSON.stringify(sessions, null, 2), 'utf-8');
+    const existingSession = await sessionRepository.findByKey(key)
 
-        const instance = WhatsAppInstances[key];
-        const data = await instance.init();
+    if (existingSession) {
+        await sessionRepository.update(key, {
+            ignoreGroups,
+            webhook,
+            base64,
+            webhookUrl,
+            browser,
+            webhookEvents,
+            messagesRead,
+        })
+
+        const instance = InstanceManager.getInstance(key)
+        if (instance) {
+            // Update instance properties
+            instance.instance.webhook = webhook
+            instance.instance.webhook_url = webhookUrl
+            instance.instance.webhook_events = webhookEvents
+            instance.instance.base64 = base64
+            instance.instance.ignoreGroups = ignoreGroups
+            instance.instance.mark = messagesRead
+            instance.socketConfig.browser = [browser]
+
+            // Re-initialize the instance to apply changes
+            await instance.init()
+        } else {
+            await InstanceManager.createInstance(key, {
+                webhook,
+                webhookUrl,
+                browser,
+                ignoreGroups,
+                webhookEvents,
+                messagesRead,
+                base64,
+            })
+        }
+
         res.json({
             error: false,
-            message: 'Instancia editada',
+            message: 'Instance edited',
             key: key,
             webhook: {
                 enabled: webhook,
                 webhookUrl: webhookUrl,
-                webhookEvents: webhookEvents
+                webhookEvents: webhookEvents,
             },
             browser: browser,
             messagesRead: messagesRead,
             ignoreGroups: ignoreGroups,
-        });
+        })
     } else {
         return res.json({
             error: true,
-            message: 'Sessão não localizada.'
-        });
+            message: 'Session not found.',
+        })
     }
-};
+}
 
 exports.getcode = async (req, res) => {
     try {
         if (!req.body.number) {
             return res.json({
                 error: true,
-                message: 'Numero de telefone inválido'
-            });
+                message: 'Invalid phone number',
+            })
         } else {
-            const instance = WhatsAppInstances[req.query.key];
-            data = await instance.getInstanceDetail(req.body.key);
+            const key = req.query.key
+            const instance = InstanceManager.getInstance(key)
+            if (!instance) {
+                return res.json({
+                    error: true,
+                    message: 'Instance not found',
+                })
+            }
+
+            const data = await instance.getInstanceDetail(key)
 
             if (data.phone_connected === true) {
                 return res.json({
                     error: true,
-                    message: 'Telefone já conectado'
-                });
+                    message: 'Phone already connected',
+                })
             } else {
-                const number = await WhatsAppInstances[req.query.key].getWhatsappCode(req.body.number);
-                const code = await WhatsAppInstances[req.query.key].instance?.sock?.requestPairingCode(number);
+                const number = await instance.getWhatsappCode(req.body.number)
+                const code = await instance.instance.sock.requestPairingCode(
+                    number
+                )
                 return res.json({
                     error: false,
-                    code: code
-                });
+                    code: code,
+                })
             }
         }
     } catch (e) {
+        console.error('Error getting pairing code:', e)
         return res.json({
             error: true,
-            message: 'instância não localizada'
-        });
+            message: 'Error getting pairing code',
+        })
     }
-};
+}
 
 exports.ativas = async (req, res) => {
     if (req.query.active) {
-        let instance = [];
-        const db = mongoClient.db('whatsapp-api');
-        const result = await db.listCollections().toArray();
-        result.forEach((collection) => {
-            instance.push(collection.name);
-        });
+        // Return list of active sessions from MongoDB
+        const sessions = await sessionRepository.getAllSessions()
+        const instanceKeys = sessions.map((session) => session.key)
 
         return res.json({
-            data: instance
-        });
+            data: instanceKeys,
+        })
     }
 
-    let instance = Object.keys(WhatsAppInstances).map(async (key) =>
-        WhatsAppInstances[key].getInstanceDetail(key)
-    );
-    let data = await Promise.all(instance);
+    const instances = await InstanceManager.getAllInstances()
+    const data = await Promise.all(
+        instances.map((instance) => instance.getInstanceDetail(instance.key))
+    )
 
-    return {
-        data: data
-    };
-};
+    return res.json({
+        data: data,
+    })
+}
 
 exports.qr = async (req, res) => {
-    const verifica = await exports.validar(req, res);
-    if (verifica == true) {
-        const instance = WhatsAppInstances[req.query.key];
-        let data;
+    const key = req.query.key
+    const exists = await exports.validateInstance(req)
+    if (exists === true) {
+        const instance = InstanceManager.getInstance(key)
+        let data
         try {
-            data = await instance.getInstanceDetail(req.query.key);
+            data = await instance.getInstanceDetail(key)
         } catch (error) {
-            data = {};
+            data = {}
         }
         if (data.phone_connected === true) {
             return res.json({
                 error: true,
-                message: 'Telefone já conectado'
-            });
+                message: 'Phone already connected',
+            })
         } else {
             try {
-                const qrcode = await WhatsAppInstances[req.query.key]?.instance.qr;
+                const qrcode = instance.instance.qr
                 res.render('qrcode', {
                     qrcode: qrcode,
-                });
+                })
             } catch {
                 res.json({
                     qrcode: '',
-                });
+                })
             }
         }
     } else {
         return res.json({
             error: true,
-            message: 'Instâcncia não existente'
-        });
+            message: 'Instance does not exist',
+        })
     }
-};
+}
 
 exports.qrbase64 = async (req, res) => {
-    const verifica = await exports.validar(req, res);
-    if (verifica == true) {
-        const instance = WhatsAppInstances[req.query.key];
-        let data;
+    const key = req.query.key
+    const exists = await exports.validateInstance(req)
+    if (exists === true) {
+        const instance = InstanceManager.getInstance(key)
+        let data
         try {
-            data = await instance.getInstanceDetail(req.query.key);
+            data = await instance.getInstanceDetail(key)
         } catch (error) {
-            data = {};
+            data = {}
         }
         if (data.phone_connected === true) {
             return res.json({
                 error: true,
-                message: 'Telefone já conectado'
-            });
+                message: 'Phone already connected',
+            })
         } else {
             try {
-                const qrcode = await WhatsAppInstances[req.query.key]?.instance.qr;
+                const qrcode = instance.instance.qr
                 res.json({
                     error: false,
                     message: 'QR Base64 fetched successfully',
                     qrcode: qrcode,
-                });
+                })
             } catch {
                 res.json({
                     qrcode: '',
-                });
+                })
             }
         }
     } else {
         return res.json({
             error: true,
-            message: 'Instâcncia não existente'
-        });
+            message: 'Instance does not exist',
+        })
     }
-};
+}
 
-exports.validar = async (req, res) => {
-    const verifica = await exports.ativas(req, res);
-    const existe = verifica.data.some(item => item.instance_key === req.query.key);
-    if (existe) {
-        return true;
+exports.validateInstance = async (req) => {
+    const key = req.query.key
+    const existingSession = await sessionRepository.findByKey(key)
+    if (existingSession) {
+        return true
     } else {
-        return false;
+        return false
     }
-};
+}
 
 exports.info = async (req, res) => {
-    const verifica = await exports.validar(req, res);
-    if (verifica == true) {
-        const instance = WhatsAppInstances[req.query.key];
-        let data;
+    const key = req.query.key
+    const exists = await exports.validateInstance(req)
+    if (exists === true) {
         try {
-            data = await instance.getInstanceDetail(req.query.key);
+            const data = await InstanceManager.getInstanceDetail(key)
+            return res.json({
+                error: false,
+                message: 'Instance fetched successfully',
+                instance_data: data,
+            })
         } catch (error) {
-            data = {};
+            return res.json({
+                error: true,
+                message: error.message,
+            })
         }
-        return res.json({
-            error: false,
-            message: 'Instance fetched successfully',
-            instance_data: data,
-        });
     } else {
         return res.json({
             error: true,
-            message: 'Instâcncia não existente'
-        });
+            message: 'Instance does not exist',
+        })
     }
-};
+}
 
 exports.infoManager = async (key) => {
     try {
-        const instance = WhatsAppInstances[key];
-        const  data = await instance.getInstanceDetail(key);
-		return data;
-        } catch (error) {
-            return {error:true, message:'erro ao encontrar a instância, tente ovamente'}
+        const instance = InstanceManager.getInstance(key)
+        if (instance) {
+            const data = await instance.getInstanceDetail(key)
+            return data
+        } else {
+            // Try to get details from MongoDB
+            const data = await InstanceManager.getInstanceDetail(key)
+            return data
         }
-       
-  };
-
+    } catch (error) {
+        return {
+            error: true,
+            message: 'Error finding the instance, please try again',
+        }
+    }
+}
 
 exports.restore = async (req, res, next) => {
     try {
-        let instance = Object.keys(WhatsAppInstances).map(async (key) =>
-            WhatsAppInstances[key].getInstanceDetail(key)
-        );
-        let data = await Promise.all(instance);
+        await InstanceManager.restoreInstances()
+        const instances = await InstanceManager.getAllInstances()
+        const data = await Promise.all(
+            instances.map((instance) =>
+                instance.getInstanceDetail(instance.key)
+            )
+        )
 
-        if (data.length > 0) {
-            return res.json({
-                error: false,
-                message: 'All instances restored',
-                data: data,
-            });
-        } else {
-            const session = new Session();
-            let restoredSessions = await session.restoreSessions();
-
-            return res.json({
-                error: false,
-                message: 'All instances restored',
-                data: restoredSessions,
-            });
-        }
+        return res.json({
+            error: false,
+            message: 'All instances restored',
+            data: data,
+        })
     } catch (error) {
-        next(error);
+        next(error)
     }
-};
+}
 
 exports.logout = async (req, res) => {
-  const instance = WhatsAppInstances[req.query.key];
-    let errormsg;
+    const key = req.query.key
     try {
-        await WhatsAppInstances[req.query.key].instance?.sock?.logout();
-        await instance.deleteFolder('db/' + req.query.key);
-        await instance.init();
+        const instance = InstanceManager.getInstance(key)
+        if (instance) {
+            await instance.instance.sock.logout()
+            await InstanceManager.deleteInstance(key)
+            // Optionally, you can re-initialize the instance
+            // await InstanceManager.createInstance(key, {});
+        } else {
+            throw new Error('Instance not found')
+        }
+        return res.json({
+            error: false,
+            message: 'Logout successful',
+        })
     } catch (error) {
-	
-        errormsg = error;
+        return res.json({
+            error: true,
+            message: error.message,
+        })
     }
-    return res.json({
-        error: false,
-        message: 'logout successfull',
-        errormsg: errormsg ? errormsg : null,
-    });
-};
+}
 
 exports.delete = async (req, res) => {
-    let errormsg;
-    const verifica = await exports.validar(req, res);
-    if (verifica == true) {
-        try {
-            await WhatsAppInstances[req.query.key].deleteInstance(req.query.key);
-            delete WhatsAppInstances[req.query.key];
-        } catch (error) {
-            errormsg = error;
+    const key = req.query.key
+    try {
+        const exists = await exports.validateInstance(req)
+        if (exists === true) {
+            await InstanceManager.deleteInstance(key)
+            return res.json({
+                error: false,
+                message: 'Instance deleted successfully',
+            })
+        } else {
+            return res.json({
+                error: true,
+                message: 'Instance does not exist',
+            })
         }
+    } catch (error) {
         return res.json({
-            error: false,
-            message: 'Instance deleted successfully',
-            data: errormsg ? errormsg : null,
-        });
-    } else {
-        return res.json({
-            error: false,
-            message: 'Instance deleted successfully',
-            data: errormsg ? errormsg : null,
-        });
+            error: true,
+            message: error.message,
+        })
     }
-};
+}
 
 exports.list = async (req, res) => {
-    let instance = Object.keys(WhatsAppInstances).map(async (key) =>
-        WhatsAppInstances[key].getInstanceDetail(key)
-    );
-    let data = await Promise.all(instance);
-    return res.json({
-        error: false,
-        message: 'All instance listed',
-        data: data,
-    });
-};
+    try {
+        const instances = await InstanceManager.getAllInstances()
+        const data = await Promise.all(
+            instances.map((instance) =>
+                instance.getInstanceDetail(instance.key)
+            )
+        )
+        return res.json({
+            error: false,
+            message: 'All instances listed',
+            data: data,
+        })
+    } catch (error) {
+        res.json({
+            error: true,
+            message: error.message,
+        })
+    }
+}
 
 exports.deleteInactives = async (req, res) => {
-    let instance = Object.keys(WhatsAppInstances).map(async (key) =>
-        WhatsAppInstances[key].getInstanceDetail(key)
-    );
-    let data = await Promise.all(instance);
-    const deletePromises = [];
-    for (const instance of data) {
-        if (instance.phone_connected === undefined || instance.phone_connected === false) {
-            const deletePromise = WhatsAppInstances[instance.instance_key].deleteInstance(instance.instance_key);
-            delete WhatsAppInstances[instance.instance_key];
-            deletePromises.push(deletePromise);
+    try {
+        const instances = await InstanceManager.getAllInstances()
+        const data = await Promise.all(
+            instances.map((instance) =>
+                instance.getInstanceDetail(instance.key)
+            )
+        )
+        for (const instanceData of data) {
+            if (
+                instanceData.phone_connected === undefined ||
+                instanceData.phone_connected === false
+            ) {
+                await InstanceManager.deleteInstance(instanceData.instance_key)
+                await sleep(150)
+            }
         }
-        await sleep(150);
+        return res.json({
+            error: false,
+            message: 'All inactive sessions deleted',
+        })
+    } catch (error) {
+        res.json({
+            error: true,
+            message: error.message,
+        })
     }
-    await Promise.all(deletePromises);
-    return res.json({
-        error: false,
-        message: 'All inactive sessions deleted',
-    });
-};
+}
 
 exports.deleteAll = async (req, res) => {
-    let instance = Object.keys(WhatsAppInstances).map(async (key) =>
-        WhatsAppInstances[key].getInstanceDetail(key)
-    );
-    let data = await Promise.all(instance);
-    const deletePromises = [];
-    for (const instance of data) {
-        const deletePromise = WhatsAppInstances[instance.instance_key].deleteInstance(instance.instance_key);
-        delete WhatsAppInstances[instance.instance_key];
-        deletePromises.push(deletePromise);
-        await sleep(150);
+    try {
+        const instances = await InstanceManager.getAllInstances()
+        for (const instance of instances) {
+            await InstanceManager.deleteInstance(instance.key)
+            await sleep(150)
+        }
+        return res.json({
+            error: false,
+            message: 'All sessions deleted',
+        })
+    } catch (error) {
+        res.json({
+            error: true,
+            message: error.message,
+        })
     }
-    await Promise.all(deletePromises);
-    return res.json({
-        error: false,
-        message: 'All sessions deleted',
-    });
-};
+}

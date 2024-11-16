@@ -6,7 +6,8 @@ services:
     container_name: wpp-backend
     build:
       context: .  # Set to the root directory, assuming Dockerfile is in the root
-      dockerfile: Dockerfile  
+      dockerfile: dev.Dockerfile
+      # dockerfile: old.Dockerfile
     volumes:
       - ./src:/app/src  # Mount the `src` directory directly into `/app/src` in the container
       - /app/node_modules  # Prevents overwriting `node_modules` in the container
